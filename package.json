@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/bartmao/LearnEverything/issues"
   },
-  "homepage": "https://github.com/bartmao/LearnEverything#readme"
+  "homepage": "https://github.com/bartmao/LearnEverything#readme",
+  "devDependencies": {
+    "@types/node": "^6.0.57"
+  }
 }
