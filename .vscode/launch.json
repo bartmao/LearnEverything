@@ -8,8 +8,12 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceRoot}\\app.js",
-            "cwd": "${workspaceRoot}"
+            "program": "${workspaceRoot}\\out\\GifDumper.js",
+            "cwd": "${workspaceRoot}",
+            "sourceMaps": true,
+            "outFiles": [
+                "./out/*"
+            ]
         },
         {
             "type": "node",
