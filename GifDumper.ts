@@ -1,8 +1,8 @@
 import BinaryFileReader from './BinaryFileReader'
 import fs = require('fs')
-//import lzw = require("node-lzw");
+var GifLZWDecoder = require(__dirname + '/../GifLZWDecoder');
 
-let fd = fs.createReadStream(__dirname +  '/../resources/51.gif');
+let fd = fs.createReadStream(__dirname + '/../resources/1.gif');
 let rd = new BinaryFileReader(fd);
 
 async function readGif() {
@@ -34,11 +34,13 @@ async function readGif() {
     while (id == 0x21 || id == 0x2C) {
         if (id == 0x2C) {
             let imgPos = rd.pos;
-            let s = await rd.readBytes(10);
             // read LCT
             // read image data
-            // var ss = readBytes(1); // LZW
-            var info = await readSubBlocks(0, 0, true);
+            let s = await rd.readBytes(9);
+            let LZWcode = await rd.readBytes(1);
+            let imageData = [];
+            var info = await readSubBlocks(0, 0, imageData);
+            decodeImage(imageData, LZWcode.readUInt8(0));
             console.log(`${imgPos} Image Data, ${info[0]} Subblocks of total size ${info[1]}`);
             id = (await rd.readBytes(1)).readUInt8(0);
             continue;
@@ -76,20 +78,28 @@ async function readGif() {
     console.log('end');
 }
 
-async function readSubBlocks(count = 0, totalSize = 0, decode = false) {
+async function readSubBlocks(count = 0, totalSize = 0, imageData?) {
     var size = (await rd.readBytes(1)).readUInt8(0);
 
     if (size !== 0) {
         var l = await rd.readBytes(size);
-        if(decode){
-            // var deBuf = Buffer.from(lzw.decode(l));  
-            // console.log(deBuf.length);
+        if (imageData) {
+            imageData.push(l);
         }
         var info = await readSubBlocks(++count, size);
         return [info[0], totalSize + info[1]];
     }
 
     return [count, totalSize];
+}
+
+function decodeImage(data:Array<Uint8Array>, code:number) {
+    var image = [];
+    data.forEach(a=>{
+        a.forEach(i=>image.push(i));
+    });
+    let decoder = new GifLZWDecoder(image, code);
+    decoder.decode();
 }
 
 readGif();
