@@ -2,7 +2,7 @@ import BinaryFileReader from './BinaryFileReader'
 import fs = require('fs')
 var GifLZWDecoder = require(__dirname + '/../GifLZWDecoder');
 
-let fd = fs.createReadStream(__dirname + '/../resources/1.gif');
+let fd = fs.createReadStream(__dirname + '/../resources/3.gif');
 let rd = new BinaryFileReader(fd);
 
 async function readGif() {
@@ -22,12 +22,20 @@ async function readGif() {
     var px = (m_cr_s_px & 0x7);
     var bgc = bufLSD.readUInt8(5);
     var aspect = bufLSD.readUInt8(6);
-    console.log(`Width: ${width}px, Height: ${height}px, m: ${m}, cr: ${cr}, s: ${s}, pixel: ${px}, background color: ${bgc}, aspect: ${aspect}`);
+    console.log(`Width: ${width}px, Height: ${height}px, Global Color Table: ${m}, Color Resoultion: ${cr}, Sort Flag: ${s}, Size of Global Color Table: ${px}, Background color: ${bgc}, Pixel Aspect Ratio: ${aspect}`);
 
     // read GCT
     var tableSize = 3 * Math.pow(2, px + 1);
     var bufCr = await rd.readBytes(tableSize);
+    var dumpCT = true;
+    if(dumpCT){
+        let s = fs.createWriteStream('colortable');
+        s.write(bufCr);
+        s.end();
+    }
     console.log(`Color table of size ${tableSize}: ${bufCr.toString('hex')}`);
+
+    let oneImage: number = 0;
 
     // read blocks
     var id = (await rd.readBytes(1)).readUInt8(0);
@@ -40,7 +48,14 @@ async function readGif() {
             let LZWcode = await rd.readBytes(1);
             let imageData = [];
             var info = await readSubBlocks(0, 0, imageData);
-            decodeImage(imageData, LZWcode.readUInt8(0));
+            if (oneImage == 1 ) {
+                let ws = fs.createWriteStream('1.plain');
+                decodeImage(imageData, LZWcode.readUInt8(0), ws); 
+                ws.end();
+                return;
+            }
+            oneImage++;
+
             console.log(`${imgPos} Image Data, ${info[0]} Subblocks of total size ${info[1]}`);
             id = (await rd.readBytes(1)).readUInt8(0);
             continue;
@@ -63,7 +78,7 @@ async function readGif() {
             var size = (await rd.readBytes(1)).readUInt8(0);
             await rd.readBytes(4);
             await rd.readBytes(1);
-            console.log(`Graphic Control Ext`);
+            console.log(`${rd.pos} Graphic Control Ext`);
         }
         else if (label == 0x01) {
             var size = (await rd.readBytes(1)).readUInt8(0);
@@ -86,19 +101,19 @@ async function readSubBlocks(count = 0, totalSize = 0, imageData?) {
         if (imageData) {
             imageData.push(l);
         }
-        var info = await readSubBlocks(++count, size);
+        var info = await readSubBlocks(++count, size, imageData);
         return [info[0], totalSize + info[1]];
     }
 
     return [count, totalSize];
 }
 
-function decodeImage(data:Array<Uint8Array>, code:number) {
+function decodeImage(data: Array<Uint8Array>, code: number, writeable: NodeJS.WritableStream) {
     var image = [];
-    data.forEach(a=>{
-        a.forEach(i=>image.push(i));
+    data.forEach(a => {
+        a.forEach(i => image.push(i));
     });
-    let decoder = new GifLZWDecoder(image, code);
+    let decoder = new GifLZWDecoder(image, code, writeable);
     decoder.decode();
 }
 
