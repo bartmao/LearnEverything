@@ -23,7 +23,7 @@ export default class TaskQ {
         var nextEntry = e ? e : this.q.shift();
         if (nextEntry) {
             this.current++;
-            this.func(nextEntry.paras).then(v => {
+            this.func.apply(this.func, nextEntry.paras).then(v => {
                 this.current--;
                 nextEntry.resolve(v);
                 this.proccessQ();
