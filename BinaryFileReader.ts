@@ -6,11 +6,13 @@ export default class BinaryFileReader {
     curUnprocessedByte: number;
     curPosInByte: number;
     pos: number;
+    isEnd:boolean;
 
     constructor(rs: stream.Readable) {
         this.rs = rs;
         this.pos = 0;
         this.curPosInByte = 0;
+        this.rs.on('end', ()=>this.isEnd = true);
     }
 
     async readable(): Promise<{}> {
@@ -18,16 +20,19 @@ export default class BinaryFileReader {
     }
 
     async readBytes(num: number = 0): Promise<Buffer> {
+        if(this.isEnd) return new Promise<Buffer>(r=>r(null));
+
         let buf = this.rs.read(num);
         this.pos += num;
         if (buf) {
             return new Promise<Buffer>(r => r(buf));
         }
         else {
-            return this.readable().then<Buffer>(() => {
-                let buf1: Buffer = this.rs.read(num);
-                return new Promise<Buffer>(r => r(buf1));
-            })
+            return new Promise<Buffer>(r => {
+                this.readable().then(() => {
+                    this.readBytes(num).then(b => r(b));
+                });
+            });
         }
     }
 
