@@ -176,12 +176,42 @@ export default class MP4Dumper {
         let flag = buf.readUIntBE(1, 3);
         let entry_count = buf.readInt32BE(4);
         let baseOffset = 8;
-        console.log(`${this.getPadding()} entry_count: ${entry_count}`);
         for (let i = 1; i <= entry_count; ++i) {
             let first_chuck = buf.readInt32BE(baseOffset);
             let samples_per_chuck = buf.readInt32BE(baseOffset + 4);
             let sample_description_index = buf.readInt32BE(baseOffset + 8);
+            console.log(`${this.getPadding()} first_chuck: ${first_chuck}`);
+            console.log(`${this.getPadding()} samples_per_chuck: ${samples_per_chuck}`);
+            console.log(`${this.getPadding()} sample_description_index: ${sample_description_index}`);
             baseOffset += 12;
+        }
+    }
+
+    async parsestco(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let entry_count = buf.readInt32BE(4);
+        let baseOffset = 8;
+        for (let i = 1; i <= entry_count; ++i) {
+            let chunk_offset = buf.readInt32BE(baseOffset);
+            console.log(`${this.getPadding()} chunk_offset: ${chunk_offset}`);
+            baseOffset += 4;
+        }
+    }
+
+    async parsestts(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let entry_count = buf.readInt32BE(4);
+        let baseOffset = 8;
+        for (let i = 1; i <= entry_count; ++i) {
+            let sample_count = buf.readInt32BE(baseOffset);
+            let sample_delta = buf.readInt32BE(baseOffset + 4);
+            console.log(`${this.getPadding()} sample_count: ${sample_count}`);
+            console.log(`${this.getPadding()} sample_delta: ${sample_delta}`);
+            baseOffset += 8;
         }
     }
 
