@@ -7,13 +7,14 @@ export default class MP4Dumper {
     private context: {};
 
     constructor(fn: string) {
-        let fd = fs.createReadStream(fn);
-        this.rd = new BinaryFileReader(fd);
+        // let fd = fs.createReadStream(fn);
+        // this.rd = new BinaryFileReader(fd);
+        this.rd = BinaryFileReader.fromFilePath(fn);
         this.context = {};
+        this.context['curboxsize'] = [Number.MAX_SAFE_INTEGER];
     }
 
     async readMP4() {
-        let rd1 = this.rd;
         while (await this.readBox());
     }
 
@@ -32,17 +33,26 @@ export default class MP4Dumper {
             largeSize = true;
         }
 
-        console.log(`${pos} Box ${type} of Size ${len}`);
+        console.log(`${this.getPadding()} Box ${type} of Size ${len}`);
+
+        let stack = this.context['curboxsize'] as Array<number>;
+        stack[stack.length - 1] -= len;
 
         if (len > 8) {
-            if (this.canReadIn(type))
+            if (this.canReadIn(type)) {
+                this.context['curboxsize'].push(len);
                 await this.readBox();
+            }
             else {
                 let dataSize = len - 8 - (largeSize ? 4 : 0);
                 if (!await this.parseBox(type, dataSize))
                     data = await this.rd.readBytes(dataSize);
             }
 
+        }
+
+        while (stack[stack.length - 1] == 8) {
+            stack.pop();
         }
 
         return true;
@@ -82,10 +92,10 @@ export default class MP4Dumper {
             duration = buf.readUIntBE(16, 4);
         }
 
-        console.log(`creation time: ${new Date(creationtime)}`);
-        console.log(`modification time: ${new Date(modtime)}`);
-        console.log(`timescale: ${timescale}`);
-        console.log(`duration: ${this.getTimeframe(duration, timescale)}`);
+        console.log(`${this.getPadding()} creation time: ${new Date(creationtime)}`);
+        console.log(`${this.getPadding()} modification time: ${new Date(modtime)}`);
+        console.log(`${this.getPadding()} timescale: ${timescale}`);
+        console.log(`${this.getPadding()} duration: ${this.getTimeframe(duration, timescale)}`);
 
         this.context['timescale'] = timescale;
     }
@@ -98,8 +108,8 @@ export default class MP4Dumper {
         let handler_type = buf.toString('ascii', 8, 8 + 4);
         let reversed = 0;
         let name = buf.toString('utf8', 24, buf.length - 1);
-        console.log(`handler_type: ${handler_type}`);
-        console.log(`name: ${name}`);
+        console.log(`${this.getPadding()} handler_type: ${handler_type}`);
+        console.log(`${this.getPadding()} name: ${name}`);
 
         this.context['handler_type'] = handler_type;
     }
@@ -110,8 +120,6 @@ export default class MP4Dumper {
         let version = (await rd.readBytes(1)).readUInt8(0);
         let flag = (await rd.readBytes(3)).readUIntBE(0, 3);
         let entry_count = (await rd.readBytes(4)).readUInt32BE(0);
-
-        console.log(`entry_count: ${entry_count}`);
 
         for (let i = 1; i <= entry_count; ++i) {
             // Box
@@ -131,13 +139,18 @@ export default class MP4Dumper {
                 let vresolution = (await rd.readBytes(4)).readUInt32BE(0);// 72dpi
                 let reserved2 = await rd.readBytes(4); //4
                 let frame_count = await rd.readBytes(2);
-                let compressorname = (await rd.readBytes(32)).toString();
+                let compressorLen = (await rd.readBytes(1)).readInt8(0);
+                let compressorname = '';
+                if (compressorLen > 0)
+                    compressorname = (await rd.readBytes(compressorLen)).toString();
+                let compressorPadding = 32 - compressorLen > 0 ? await rd.readBytes(32 - compressorLen) : null;
                 let depth = await rd.readBytes(2);
                 let pre_defined2 = await rd.readBytes(2);
 
-                console.log(`seq: ${i} width: ${width}`);
-                console.log(`seq: ${i} height: ${height}`);
-                console.log(`seq: ${i} compressorname: ${compressorname}`);
+                console.log(`${this.getPadding()} seq: ${i} type: ${type}`);
+                console.log(`${this.getPadding()} seq: ${i} width: ${width}`);
+                console.log(`${this.getPadding()} seq: ${i} height: ${height}`);
+                console.log(`${this.getPadding()} seq: ${i} compressorname: ${compressorname}`);
             }
             else if (this.context['handler_type'] == 'soun') {
                 let reversed = await rd.readBytes(8);
@@ -147,9 +160,9 @@ export default class MP4Dumper {
                 let reserved1 = (await rd.readBytes(2)).readUInt16BE(0);
                 let samplerate = (await rd.readBytes(4)).readUInt32BE(0); // = timescale << 16
 
-                console.log(`seq: ${i} channelcount: ${channelcount}`);
-                console.log(`seq: ${i} samplesize: ${samplesize}`);
-                console.log(`seq: ${i} samplerate: ${samplerate}`);
+                console.log(`${this.getPadding()} seq: ${i} channelcount: ${channelcount}`);
+                console.log(`${this.getPadding()} seq: ${i} samplesize: ${samplesize}`);
+                console.log(`${this.getPadding()} seq: ${i} samplerate: ${samplerate}`);
             }
         }
 
@@ -157,12 +170,29 @@ export default class MP4Dumper {
         if (blank > 0) await rd.readBytes(blank);
     }
 
+    async parsestsc(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let entry_count = buf.readInt32BE(4);
+        let baseOffset = 8;
+        console.log(`${this.getPadding()} entry_count: ${entry_count}`);
+        for (let i = 1; i <= entry_count; ++i) {
+            let first_chuck = buf.readInt32BE(baseOffset);
+            let samples_per_chuck = buf.readInt32BE(baseOffset + 4);
+            let sample_description_index = buf.readInt32BE(baseOffset + 8);
+            baseOffset += 12;
+        }
+    }
+
     getTimeframe(time: number, timescale: number) {
         let h = Math.floor(time / timescale / 3600);
         let m = Math.floor((time - h * 3600 * timescale) / timescale / 60);
-        let s = Math.floor((time - h * 3600 * timescale - m * 60 * timescale) / timescale / 60);
+        let s = Math.floor((time - h * 3600 * timescale - m * 60 * timescale) / timescale);
         return `${h}'${m}"${s}`;
     }
 
-
+    getPadding() {
+        return (new Array(this.context['curboxsize'].length - 1)).join(' ');
+    }
 }

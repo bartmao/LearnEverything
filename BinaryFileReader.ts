@@ -2,17 +2,23 @@ import fs = require('fs')
 import stream = require('stream');
 
 export default class BinaryFileReader {
-    rs: stream.Readable;
     curUnprocessedByte: number;
     curPosInByte: number;
     pos: number;
-    isEnd:boolean;
+    isEnd: boolean;
+    rs:stream.Readable;
 
     constructor(rs: stream.Readable) {
         this.rs = rs;
         this.pos = 0;
         this.curPosInByte = 0;
-        this.rs.on('end', ()=>this.isEnd = true);
+        this.rs.on('end', () => this.isEnd = true);
+    }
+
+    static fromFilePath(path: string) {
+        let fd = fs.openSync(path, 'r');
+        let rs = fs.createReadStream(path, { fd: fd });
+        return new BinaryFileReader(rs);
     }
 
     async readable(): Promise<{}> {
@@ -20,11 +26,15 @@ export default class BinaryFileReader {
     }
 
     async readBytes(num: number = 0): Promise<Buffer> {
-        if(this.isEnd) return new Promise<Buffer>(r=>r(null));
+        if (this.isEnd) return new Promise<Buffer>(r => r(null));
+        if (num > (1 << 17)) {
+            await this.seek(Math.floor(num / (1 << 17)) * (1 << 17));
+            num = num % (1 << 17);
+        }
 
         let buf = this.rs.read(num);
-        this.pos += num;
         if (buf) {
+            this.pos += num;
             return new Promise<Buffer>(r => r(buf));
         }
         else {
@@ -66,5 +76,32 @@ export default class BinaryFileReader {
         });
 
         return v;
+    }
+
+    async seek(size: number) {
+        if (this.rs.fd) {
+            let curRs = this;
+            return new Promise((resolve, reject) => {
+                fs.read(curRs.rs.fd, Buffer.alloc(4), 0, 4, curRs.pos + size - 4, (err, bytesRead, buf) => {
+                    if (!err) {
+                        curRs.pos += size;
+                        // Refresh rs, since this inner point can't move automatically.
+                        curRs.rs = fs.createReadStream(null, { fd: curRs.rs.fd });
+                        this.curPosInByte = 0;
+                        curRs.rs.on('end', () => this.isEnd = true);
+                        resolve(bytesRead);
+                    }
+                    else reject(err);
+                });
+            });
+        }
+        else {
+            // Recursive may cause stack overflow, using iteration is a safe way.
+            while (size > (1 << 17)) {
+                await this.readBytes(1 << 17);
+                size -= (1 << 17);
+            }
+            return this.readBytes(size);
+        }
     }
 }
