@@ -6,7 +6,7 @@ export default class BinaryFileReader {
     curPosInByte: number;
     pos: number;
     isEnd: boolean;
-    rs:stream.Readable;
+    rs: stream.Readable;
 
     constructor(rs: stream.Readable) {
         this.rs = rs;
@@ -25,8 +25,14 @@ export default class BinaryFileReader {
         return new Promise(r => this.rs.on('readable', r));
     }
 
+    async end(): Promise<{}> {
+        return new Promise(r => this.rs.on('end', r));
+    }
+
     async readBytes(num: number = 0): Promise<Buffer> {
-        if (this.isEnd) return new Promise<Buffer>(r => r(null));
+        // bug here: end event could raise after a readBytes() call, this promise will never be resolved.
+        if (this.isEnd)
+            return new Promise<Buffer>(r => r(null));
         if (num > (1 << 17)) {
             await this.seek(Math.floor(num / (1 << 17)) * (1 << 17));
             num = num % (1 << 17);
@@ -38,9 +44,12 @@ export default class BinaryFileReader {
             return new Promise<Buffer>(r => r(buf));
         }
         else {
-            return new Promise<Buffer>(r => {
+            return new Promise<Buffer>((resolve, reject) => {
                 this.readable().then(() => {
-                    this.readBytes(num).then(b => r(b));
+                    this.readBytes(num).then(b => resolve(b));
+                });
+                this.end().then(()=> {
+                    reject('end');
                 });
             });
         }
@@ -88,7 +97,10 @@ export default class BinaryFileReader {
                         // Refresh rs, since this inner point can't move automatically.
                         curRs.rs = fs.createReadStream(null, { fd: curRs.rs.fd });
                         this.curPosInByte = 0;
-                        curRs.rs.on('end', () => this.isEnd = true);
+                        curRs.rs.on('end', () => {
+                            curRs.isEnd = true;
+                        }
+                        );
                         resolve(bytesRead);
                     }
                     else reject(err);

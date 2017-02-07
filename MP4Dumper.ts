@@ -4,25 +4,35 @@ import BinaryFileReader from './BinaryFileReader'
 
 export default class MP4Dumper {
     private rd: BinaryFileReader;
-    private context: {};
+    private context: Context;
 
     constructor(fn: string) {
         // let fd = fs.createReadStream(fn);
         // this.rd = new BinaryFileReader(fd);
         this.rd = BinaryFileReader.fromFilePath(fn);
-        this.context = {};
-        this.context['curboxsize'] = [Number.MAX_SAFE_INTEGER];
+        this.context = new Context;
+        this.context.CurBoxSize = [Number.MAX_SAFE_INTEGER];
     }
 
     async readMP4() {
         while (await this.readBox());
+        console.log('');
+        this.dumpDTS();
     }
 
     async readBox() {
         let pos = this.rd.pos.toString();
-        //pos = '';
-        let buf = await this.rd.readBytes(4);
-        if (!buf) return false;
+        let buf;
+        try {
+            buf = await this.rd.readBytes(4);
+        }
+        catch (err) {
+            console.log(err);
+            return false;
+        }
+
+        if (!buf)
+            return false;
 
         let len = buf.readUInt32BE(0);
         let type = await this.rd.readString(4);
@@ -35,12 +45,12 @@ export default class MP4Dumper {
 
         console.log(`${this.getPadding()} Box ${type} of Size ${len}`);
 
-        let stack = this.context['curboxsize'] as Array<number>;
+        let stack = this.context.CurBoxSize;
         stack[stack.length - 1] -= len;
 
         if (len > 8) {
             if (this.canReadIn(type)) {
-                this.context['curboxsize'].push(len);
+                this.context.CurBoxSize.push(len);
                 await this.readBox();
             }
             else {
@@ -95,9 +105,60 @@ export default class MP4Dumper {
         console.log(`${this.getPadding()} creation time: ${new Date(creationtime)}`);
         console.log(`${this.getPadding()} modification time: ${new Date(modtime)}`);
         console.log(`${this.getPadding()} timescale: ${timescale}`);
-        console.log(`${this.getPadding()} duration: ${this.getTimeframe(duration, timescale)}`);
+        console.log(`${this.getPadding()} duration: ${this.getTimeframe(duration, timescale)}(${duration})`);
 
-        this.context['timescale'] = timescale;
+        this.context.Timescale = timescale;
+    }
+
+    async parsemdhd(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let creationtime: number;
+        let modtime: number;
+        let timescale: number;
+        let duration: number;
+        if (version) {
+            creationtime = buf.readUIntBE(4, 8);
+            modtime = buf.readUIntBE(12, 8);
+            timescale = buf.readUInt32BE(20);
+            duration = buf.readUIntBE(24, 8);
+        }
+        else {
+            creationtime = buf.readUIntBE(4, 4);
+            modtime = buf.readUIntBE(8, 4);
+            timescale = buf.readUInt32BE(12);
+            duration = buf.readUIntBE(16, 4);
+        }
+
+        let padLang = buf.readUInt16BE(20); // pading + language
+        let pre_defined = buf.readUInt16BE(22);
+        console.log(`${this.getPadding()} creation time: ${new Date(creationtime)}`);
+        console.log(`${this.getPadding()} modification time: ${new Date(modtime)}`);
+        console.log(`${this.getPadding()} timescale: ${timescale}`);
+        console.log(`${this.getPadding()} duration: ${this.getTimeframe(duration, timescale)}(${duration})`);
+
+        this.context.SampleDTMappings[0] = timescale;
+    }
+
+    async parsestsz(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let sample_size = buf.readUInt32BE(4);
+        let sample_count = buf.readUInt32BE(8);
+        console.log(`${this.getPadding()} sample_size: ${sample_size}`);
+        console.log(`${this.getPadding()} sample_count: ${sample_count}`);
+        this.context.SampleSize.push(sample_size);
+        if (sample_size == 0) {
+            let baseSize = 12;
+            for (let i = 1; i <= sample_count; ++i) {
+                let entry_size = buf.readUInt32BE(baseSize);
+                baseSize += 4;
+                this.context.SampleSize.push(entry_size);
+                console.log(`${this.getPadding()} seq: ${i} entry_size: ${entry_size}`);
+            }
+        }
     }
 
     async parsehdlr(dsize: number) {
@@ -111,7 +172,7 @@ export default class MP4Dumper {
         console.log(`${this.getPadding()} handler_type: ${handler_type}`);
         console.log(`${this.getPadding()} name: ${name}`);
 
-        this.context['handler_type'] = handler_type;
+        this.context.CurHandlerType = handler_type;
     }
 
     async parsestsd(dsize: number) {
@@ -129,7 +190,7 @@ export default class MP4Dumper {
             let reversed = await rd.readBytes(6);
             let data_reference_index = (await rd.readBytes(2)).readUInt16BE(0);
             // Concrect Sample
-            if (this.context['handler_type'] == 'vide') {
+            if (this.context.CurHandlerType == 'vide') {
                 let pre_defined = await rd.readBytes(2);
                 let reversed1 = await rd.readBytes(2);
                 let pre_defined1 = await rd.readBytes(12);
@@ -152,7 +213,7 @@ export default class MP4Dumper {
                 console.log(`${this.getPadding()} seq: ${i} height: ${height}`);
                 console.log(`${this.getPadding()} seq: ${i} compressorname: ${compressorname}`);
             }
-            else if (this.context['handler_type'] == 'soun') {
+            else if (this.context.CurHandlerType == 'soun') {
                 let reversed = await rd.readBytes(8);
                 let channelcount = (await rd.readBytes(2)).readUInt16BE(0);
                 let samplesize = (await rd.readBytes(2)).readUInt16BE(0);
@@ -184,6 +245,7 @@ export default class MP4Dumper {
             console.log(`${this.getPadding()} samples_per_chuck: ${samples_per_chuck}`);
             console.log(`${this.getPadding()} sample_description_index: ${sample_description_index}`);
             baseOffset += 12;
+            this.context.ChunkSampleMappings.push([first_chuck, samples_per_chuck]);
         }
     }
 
@@ -193,10 +255,12 @@ export default class MP4Dumper {
         let flag = buf.readUIntBE(1, 3);
         let entry_count = buf.readInt32BE(4);
         let baseOffset = 8;
+        console.log(`${this.getPadding()} chunk_entry_count: ${entry_count}`);
         for (let i = 1; i <= entry_count; ++i) {
             let chunk_offset = buf.readInt32BE(baseOffset);
-            console.log(`${this.getPadding()} chunk_offset: ${chunk_offset}`);
+            //console.log(`${this.getPadding()} chunk_offset: ${chunk_offset}`);
             baseOffset += 4;
+            this.context.ChunkOffset.push(chunk_offset);
         }
     }
 
@@ -206,11 +270,28 @@ export default class MP4Dumper {
         let flag = buf.readUIntBE(1, 3);
         let entry_count = buf.readInt32BE(4);
         let baseOffset = 8;
+
         for (let i = 1; i <= entry_count; ++i) {
             let sample_count = buf.readInt32BE(baseOffset);
             let sample_delta = buf.readInt32BE(baseOffset + 4);
             console.log(`${this.getPadding()} sample_count: ${sample_count}`);
             console.log(`${this.getPadding()} sample_delta: ${sample_delta}`);
+            this.context.SampleDTMappings[1].push([sample_count, sample_delta]);
+            baseOffset += 8;
+        }
+    }
+
+    async parsectts(dsize: number) {
+        let buf = await this.rd.readBytes(dsize);
+        let version = buf.readUInt8(0);
+        let flag = buf.readUIntBE(1, 3);
+        let entry_count = buf.readInt32BE(4);
+        let baseOffset = 8;
+        for (let i = 1; i <= entry_count; ++i) {
+            let sample_count = buf.readInt32BE(baseOffset);
+            let sample_offset = buf.readInt32BE(baseOffset + 4);
+            console.log(`${this.getPadding()} sample_count: ${sample_count}`);
+            console.log(`${this.getPadding()} sample_offset: ${sample_offset}`);
             baseOffset += 8;
         }
     }
@@ -223,6 +304,45 @@ export default class MP4Dumper {
     }
 
     getPadding() {
-        return (new Array(this.context['curboxsize'].length - 1)).join(' ');
+        return (new Array(this.context.CurBoxSize.length - 1)).join(' ');
     }
+
+    dumpDTS() {
+        let track_timescale = this.context.SampleDTMappings[0];
+
+        let sampleIndex = 0;
+        let sstsIndex = 0;
+        let curSampleBoxRemains = this.context.SampleDTMappings[1][sstsIndex][0];
+        let dts = 0;
+        let sampleOffset = 0;
+        for (let i = 0; i < this.context.ChunkOffset.length; ++i) {
+            // find samples in the chunk;
+            let chunkId = i + 1;
+            let chunk = this.context.ChunkOffset[i];
+            let nexti = this.context.ChunkSampleMappings.findIndex(v => v[0] > chunkId);
+            nexti = nexti == -1 ? this.context.ChunkSampleMappings.length : nexti;
+            let sampleCount = this.context.ChunkSampleMappings[nexti - 1][1];
+            sampleOffset = chunk;
+            for (let j = sampleIndex; j < sampleCount; ++j) {
+                let sampleId = j + 1;
+                let sampleSize = this.context.SampleSize[0] != 0 ? this.context.SampleSize[1] : this.context.SampleSize[j + 1];
+                console.log(`Chuck ${chunkId} Sample ${sampleId} Offset ${sampleOffset} Size ${sampleSize} DTS ${dts / track_timescale}`);
+
+                curSampleBoxRemains -= 1;
+                dts += this.context.SampleDTMappings[1][sstsIndex][1];
+                if (curSampleBoxRemains == 0) sstsIndex++; // move to next entry in ssts
+                sampleOffset += sampleSize;
+            }
+        }
+    }
+}
+
+class Context {
+    CurBoxSize: Array<number> = [];
+    Timescale: number;
+    CurHandlerType: string;
+    ChunkOffset: Array<number> = [];
+    SampleSize: Array<number> = [];
+    ChunkSampleMappings: Array<[number, number]> = [];
+    SampleDTMappings: [number, Array<[number, number]>] = [0, []];
 }
