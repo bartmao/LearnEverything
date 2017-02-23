@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+
+var minimist = require('minimist');
+var http = require('http');
+var fs = require('fs');
+var path = require('path');
+
+var transcoder = require('./transcoder');
+var config = require('./config.json');
+
+var argv = minimist(process.argv.slice(2));
+
+if (argv.u) {
+
+} else if (argv.s) {
+    // start http server
+    var port = isNaN(parseInt(argv.s)) ? 80 : parseInt(argv.s);
+    var srv = http.createServer((req, resp) => {
+        // transcoder.start('test', );
+        // resp.write('');
+        resp.end(`${req.url}`);
+    });
+    srv.listen(port);
+    console.log('VOD server started...');
+}
+
+function findResourcePath(url) {
+    var stat = fs.statSync(path.join(__dirname, url));
+    if (stat.isDirectory()) {
+        // cached
+    } else if (stat.isFile()) {
+        var dirs = config.dirs.length == 0 ? ['.'] : config.dirs;
+        dirs.forEach(dir=>{
+            var path = path.join(dir, url);
+            // check file exist
+            // transcode or return 404
+        });
+    }
+
+    return 404;
+}

@@ -8,12 +8,16 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceRoot}/test.ts",
-            "cwd": "${workspaceRoot}",
+            "program": "${workspaceRoot}/VOD/vodsrv",
+            "cwd": "${workspaceRoot}/VOD",
             "sourceMaps": true,
             "outFiles": [
                 "${workspaceRoot}/out/*.js",
-                "${workspaceRoot}/*.ts"
+                "${workspaceRoot}/*.ts",
+                "${workspaceRoot}/*.js"
+            ],
+            "args": [
+                "-s","3002"
             ]
         },
         {
