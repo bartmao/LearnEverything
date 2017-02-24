@@ -15,27 +15,44 @@ if (argv.u) {
 } else if (argv.s) {
     // start http server
     var port = isNaN(parseInt(argv.s)) ? 80 : parseInt(argv.s);
-    var srv = http.createServer((req, resp) => {
-        // transcoder.start('test', );
-        // resp.write('');
-        resp.end(`${req.url}`);
-    });
+    var srv = http.createServer((req, resp) => handleRequest(req, resp));
     srv.listen(port);
-    console.log('VOD server started...');
+    console.log('VOD server started on ' + port);
 }
 
-function findResourcePath(url) {
-    var stat = fs.statSync(path.join(__dirname, url));
-    if (stat.isDirectory()) {
-        // cached
-    } else if (stat.isFile()) {
-        var dirs = config.dirs.length == 0 ? ['.'] : config.dirs;
-        dirs.forEach(dir=>{
-            var path = path.join(dir, url);
-            // check file exist
-            // transcode or return 404
-        });
+function handleRequest(req, resp) {
+    route();
+
+    function route() {
+        if (req.url == '/') req.url = '/play';
+        console.log('access ' + req.url);
+        var reg = /\/(play)\/?(.*)\/?(.*)\/?/gi;
+        var r = reg.exec(req.url);
+        if (r) {
+            if (!r[3]) {
+                // only action OR action/medianame
+                return fs.createReadStream(path.join(__dirname, r[1] + '.html')).pipe(resp);
+            }
+            else {
+                // full path            
+                var file = path.join(__dirname, r[2], r[3]);
+                if (fs.existsSync(file))
+                    return fs.createReadStream(file).pipe(resp);
+            }
+            return handle404(resp);
+        }
+        else {
+            // Other files, scripts etc.
+            var file = path.join(__dirname, req.url);
+            if (fs.existsSync(file))
+                return fs.createReadStream(file).pipe(resp);
+        }
+
+        return handle404(resp);
     }
 
-    return 404;
+    function handle404() {
+        resp.statusCode = 404;
+        resp.end();
+    }
 }

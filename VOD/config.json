@@ -1,3 +1,10 @@
 {
-    "dirs": []
+    "dirs": [],
+    "cmd": {
+        "ffmpeg": "ffmpeg",
+        "mp4box": "MP4Box"
+    },
+    "ffmpegopts": "-y -i %file -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=150:min-keyint=150:no-scenecut -b:v 400k %dir1v.mp4 -map 0:1 -c:a aac -b:a 128k %dir1a.mp4",
+    "mp4boxopts4v": "-dash 10000 -frag 10000 -rap -segment-name v_ 1v.mp4#video",
+    "mp4boxopts4a": "-dash 10000 -frag 10000 -rap -segment-name a_ 1a.mp4#audio"
 }

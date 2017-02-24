@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>VOD 家庭点播</title>
+    <script src="../dash.all.debug.js"></script>
+    <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.0.0.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" crossorigin="anonymous">
+    <script>
+        function getFileName(){
+            var href = window.location.href;
+            var r = (/play\/(\w+)/i).exec(href);
+            if(r) return r[1];
+        }
+
+        function init()
+        {
+            var player, video;
+            var file = getFileName();
+            if(file){
+                var MPD = getFileName() + "/1.mpd";
+                video = document.querySelector("#video1");
+                player = dashjs.MediaPlayer().create();
+                player.initialize(video,MPD ,true);
+            }
+        }
+    </script>
+    <style>
+        h1 {
+            line-height: 36px;
+        }
+        
+        .header {
+            background-color: burlywood;
+        }
+        
+        /*@media screen and (max-width: 576px) {
+            .list{
+                display: none;
+            }
+        }*/
+    </style>
+</head>
+
+<body onload="init()">
+    <h1>VOD</h1>
+    <div class="main">
+        <div class="header">
+            <h1>VOD</h1>
+        </div>
+        <div class="list col-sm-2">
+            <ul>
+                <li>DashOnDemand</li>
+                <li>DashOnDemand</li>
+                <li>DashOnDemand</li>
+                <li>DashOnDemand</li>
+            </ul>
+        </div>
+        <div class="media col-sm-10 col-12">
+            <div class="player">
+                <video id="video1" controls="true">
+                </video>
+            </div>
+            <div class="mediaInfo"></div>
+        </div>
+    </div>
+</body>
+
+</html>
