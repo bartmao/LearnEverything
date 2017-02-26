@@ -18,5 +18,8 @@
   "homepage": "https://github.com/bartmao/LearnEverything#readme",
   "devDependencies": {
     "@types/node": "^6.0.57"
+  },
+  "dependencies": {
+    "minimist": "^1.2.0"
   }
 }

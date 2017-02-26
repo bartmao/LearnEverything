@@ -6,14 +6,18 @@ var path = require('path');
 
 function start(file) {
     // pre1. make folder for dash files
-    var dirpath = __dirname + path.basename(file)
+    var dirpath = path.join(__dirname, path.parse(file).name);
     if (!fs.existsSync(dirpath))
         fs.mkdirSync(dirpath);
-        
+
     // 1. transcode using ffmpeg divide into video/audio files
     // 2. mp4box packages video/audio files
     // 3. merge AdaptationSet
-    var ffmpegopts = config.ffmpegopts.replace(/%file/g, file).replace(/%dir/g, dirpath + path.sep).split(' ');
+    var ffmpegopts = config.ffmpegopts.split(' ');
+    ffmpegopts.map((v, i) => {
+        if (v.indexOf('%file') != -1) ffmpegopts[i]= ffmpegopts[i].replace(/%file/, file);
+        else if (v.indexOf('%dir') != -1) ffmpegopts[i] = ffmpegopts[i].replace(/%dir/, dirpath + path.sep);
+    });
     var ps = child_process.spawn(config.cmd.ffmpeg, ffmpegopts, { stdio: ['pipe', process.stdout, process.stderr] });
     ps.on('exit', () => startpkg(dirpath).then(r => mergeMPD(dirpath)));
 }

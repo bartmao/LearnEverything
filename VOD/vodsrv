@@ -7,7 +7,10 @@ var path = require('path');
 
 var transcoder = require('./transcoder');
 var config = require('./config.json');
+var mediamanager = require('./mediamanager');
+var service = require('./service');
 
+var workingqueue = [];
 var argv = minimist(process.argv.slice(2));
 
 if (argv.u) {
@@ -24,21 +27,37 @@ function handleRequest(req, resp) {
     route();
 
     function route() {
+        req.url = decodeURI(req.url);
         if (req.url == '/') req.url = '/play';
         console.log('access ' + req.url);
-        var reg = /\/(play)\/?(.*)\/?(.*)\/?/gi;
+        var reg = /\/(play|serve)\/?([^\/]*)\/?(.*)\/?/gi;
         var r = reg.exec(req.url);
         if (r) {
-            if (!r[3]) {
-                // only action OR action/medianame
-                return fs.createReadStream(path.join(__dirname, r[1] + '.html')).pipe(resp);
+            if (r[1] == 'play') {
+                if (!r[3]) {
+                    // only action OR action/medianame
+                    return fs.createReadStream(path.join(__dirname, r[1] + '.html')).pipe(resp);
+                }
+                else {
+                    // full path            
+                    var file = path.join(__dirname, r[2], r[3]);
+                    if (fs.existsSync(file))
+                        return fs.createReadStream(file).pipe(resp);
+                    else if (file.endsWith('mpd')) {
+                        // if this meida exists but not generated yet, then begin generating
+                        if (workingqueue.indexOf(r[2]) == -1) {
+                            workingqueue.push(r[2]);
+                            var filePath = mediamanager.locateFile(r[2]);
+                            if (filePath)
+                                transcoder.start(filePath);
+                        }
+                    }
+                }
             }
-            else {
-                // full path            
-                var file = path.join(__dirname, r[2], r[3]);
-                if (fs.existsSync(file))
-                    return fs.createReadStream(file).pipe(resp);
+            else if (r[1] == 'serve') {
+                if(service(req, resp, r)) return;
             }
+
             return handle404(resp);
         }
         else {
