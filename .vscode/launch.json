@@ -8,8 +8,8 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceRoot}/VOD/vodsrv",
-            "cwd": "${workspaceRoot}/VOD",
+            "program": "${workspaceRoot}/server.js",
+            "cwd": "${workspaceRoot}/Live",
             "sourceMaps": true,
             "outFiles": [
                 "${workspaceRoot}/out/*.js",
