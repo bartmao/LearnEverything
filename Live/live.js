@@ -4,13 +4,13 @@ var path = require('path');
 
 // 1. begin segmenting
 // 2. watch generated, package it to m4s
-var watchPath = __dirname + '/5';
+var watchPath = __dirname + path.sep + '5';
 var curSeq = 0;
 var addQ = [];
 var pkgQ = [];
 var livetime;
 
-var ffmpegopt = '-r 20 -i 1.mp4 -map 0:0 -c:v libx264 -x264opts keyint=20:min-keyint=20:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
+var ffmpegopt = '-r 15 -f dshow -i video=Integrated%spCamera -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
 var ffmpegcmd = 'ffmpeg';
 
 var mp4addopt_t = '-add %in %out';
@@ -18,7 +18,9 @@ var mp4pkgopt_t = '-dash-ctx dash-live.txt -dash 4000 -rap -ast-offset -no-frags
 var mp4cmd = 'MP4Box';
 
 function startLive() {
-    var fp = cp.spawn(ffmpegcmd, ffmpegopt.split(' '));
+    var opts = ffmpegopt.split(' ')
+    opts.forEach((v,i)=> opts[i] = opts[i].replace('%sp', ' '));
+    var fp = cp.spawn(ffmpegcmd, opts, {stdio:"inherit"});
     livetime = new Date();
     console.log('begin segmenting...');
 

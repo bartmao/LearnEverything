@@ -2,25 +2,23 @@ var video;
 var sourceBuf;
 var dataq = [];
 var mediaSource;
-var liveTime = new Date('Sun Mar 05 2017 22:40:34 GMT+0800 (CST)');
+var liveTime;
 var dur = 4000;
 var curSeq = -1;
 
 function init() {
-    // ajax('/Live/livetime', function(t){
-    //     liveTime = new Date(t);
-    // }, 'text');
+    ajax('/Live/livetime', function(t){
+        video = document.getElementById('video0');
+        mediaSource = new MediaSource();
 
-    video = document.getElementById('video0');
-    mediaSource = new MediaSource();
-
-    video.src = window.URL.createObjectURL(mediaSource);
-    mediaSource.addEventListener('sourceopen', function () {
-        //video/mp4;codecs="avc1.64001e"
-        //video/mp4;codecs="avc1.42C01F"
-        sourceBuf = mediaSource.addSourceBuffer('video/mp4;codecs="avc1.42c015"');
-        loadInitData();
-    });
+        video.src = window.URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', function () {
+            //video/mp4;codecs="avc1.64001e"
+            //video/mp4;codecs="avc1.42C01F"
+            sourceBuf = mediaSource.addSourceBuffer('video/mp4;codecs="avc1.42c015"');
+            loadInitData();
+        });
+    }, 'text');
 }
 
 function loadInitData() {
@@ -38,7 +36,9 @@ function loadInitData() {
 
 function loadData() {
     try {
-        var t = Math.floor((new Date() - liveTime)/dur);
+        var curTime = new Date() - liveTime - 3000;
+        if(curTime < 0) return;
+        var t = Math.floor(curTime/dur);
         if(t == curSeq) return setTimeout(loadData, 50);
         curSeq = t;
 
@@ -48,6 +48,7 @@ function loadData() {
                 if (video.paused) {
                     video.play();
                 }
+                video.currentTime= curTime;
                 loadData();
             });
         });
