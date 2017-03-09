@@ -18,7 +18,7 @@ function init() {
 
 function loadInitData() {
     try {
-        binaryget("Live/4/s_init.mp4", function (data) {
+        binaryget("5/s_init.mp4", function (data) {
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 var seq = 1;
@@ -32,14 +32,13 @@ function loadInitData() {
 
 function loadData(seq) {
     try {
-        binaryget("Live/4/s_" + seq + ".m4s", function (data) {
+        binaryget("5/s_" + seq + ".m4s", function (data) {
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 if (video.paused) {
                     video.play();
                 }
                 setTimeout(function () {
-                    if(seq == 1) seq = 2;
                         loadData(++seq);
                 }, 2000);
 

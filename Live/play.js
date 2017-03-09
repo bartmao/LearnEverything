@@ -6,19 +6,31 @@ var liveTime;
 var dur = 4000;
 var curSeq = -1;
 
-function init() {
-    ajax('/Live/livetime', function(t){
-        video = document.getElementById('video0');
-        mediaSource = new MediaSource();
+function start(){
+    ajax('/Live/livestart', function(t){
+        console.log('Live Started');
+        liveTime = new Date(t);
+        console.log('Live Time: ' + liveTime);
+    }, 'text');  
+}
 
-        video.src = window.URL.createObjectURL(mediaSource);
-        mediaSource.addEventListener('sourceopen', function () {
-            //video/mp4;codecs="avc1.64001e"
-            //video/mp4;codecs="avc1.42C01F"
-            sourceBuf = mediaSource.addSourceBuffer('video/mp4;codecs="avc1.42c015"');
-            loadInitData();
-        });
-    }, 'text');
+function stop(){
+    ajax('/Live/livestop', function(t){
+        console.log('Live Stopped');
+    }, 'text');  
+}
+
+function init() {
+    video = document.getElementById('video0');
+    mediaSource = new MediaSource();
+
+    video.src = window.URL.createObjectURL(mediaSource);
+    mediaSource.addEventListener('sourceopen', function () {
+        //video/mp4;codecs="avc1.64001e"
+        //video/mp4;codecs="avc1.42C01F"
+        sourceBuf = mediaSource.addSourceBuffer('video/mp4;codecs="avc1.42c015"');
+        loadInitData();
+    });
 }
 
 function loadInitData() {

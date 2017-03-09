@@ -1,6 +1,7 @@
 var cp = require('child_process');
 var fs = require('fs');
 var path = require('path');
+var rimraf = require('rimraf');
 
 // 1. begin segmenting
 // 2. watch generated, package it to m4s
@@ -10,17 +11,21 @@ var addQ = [];
 var pkgQ = [];
 var livetime;
 
-var ffmpegopt = '-r 15 -f dshow -i video=Integrated%spCamera -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
+//var ffmpegopt = '-r 15 -i 1.mp4 -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
+var ffmpegopt = '-r 15 -f dshow -i video=Microsoft%spLifeCam%spFront -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
 var ffmpegcmd = 'ffmpeg';
 
 var mp4addopt_t = '-add %in %out';
-var mp4pkgopt_t = '-dash-ctx dash-live.txt -dash 4000 -rap -ast-offset -no-frags-default -bs-switching no -min-buffer 4000 -url-template -time-shift 4000 -segment-name s_ -out %dirlive -dynamic -mpd-refresh 100000 %file';
+var mp4pkgopt_t = '-dash-ctx ./5/dash-live.txt -dash 4000 -rap -ast-offset -no-frags-default -bs-switching no -min-buffer 4000 -url-template -time-shift 4000 -segment-name s_ -out %dirlive -dynamic -mpd-refresh 100000 %file';
 var mp4cmd = 'MP4Box';
 
+var fp; // ffmpeg process
+
 function startLive() {
+    remkFolder();
     var opts = ffmpegopt.split(' ')
-    opts.forEach((v,i)=> opts[i] = opts[i].replace('%sp', ' '));
-    var fp = cp.spawn(ffmpegcmd, opts, {stdio:"inherit"});
+    opts.forEach((v,i)=> opts[i] = opts[i].replace(/%sp/g, ' '));
+    fp = cp.spawn(ffmpegcmd, opts, {stdio:"inherit"});
     livetime = new Date();
     console.log('begin segmenting...');
 
@@ -32,6 +37,11 @@ function startLive() {
             addFile(f);
         }
     });
+}
+
+function stopLive(){
+    fp.kill();
+    console.log('live stopped');
 }
 
 function addFile(f) {
@@ -61,5 +71,11 @@ function getLiveTime(){
     return livetime.toString();
 }
 
+function remkFolder(){
+    rimraf.sync(watchPath);
+    fs.mkdirSync(watchPath);
+}
+
 module.exports.startLive = startLive;
+module.exports.stopLive = stopLive;
 module.exports.liveTime = getLiveTime;

@@ -1,18 +1,19 @@
 var http = require('http');
 var fs = require('fs');
 var live = require('./Live/live.js');
+var path = require('path');
 
 http.createServer((req, resp) => {
     console.log(req.url);
     if (req.url == '/') req.url = '/Live/live.html';
     if (req.url == '/Live/livestart') return startLive();
-    if (req.url == '/Live/livetime') return getlivetime();
+    if (req.url == '/Live/livestop') return stoplive();
     return readFile(req.url);
 
     function readFile(url) {
-        var path = __dirname + url;
-        if (!fs.existsSync(path)) return handle404();
-        var rs = fs.createReadStream(path);
+        var fpath = path.join(__dirname, url);
+        if (!fs.existsSync(fpath)) return handle404();
+        var rs = fs.createReadStream(fpath);
         rs.pipe(resp);
     }
 
@@ -23,11 +24,12 @@ http.createServer((req, resp) => {
 
     function startLive() {
         live.startLive();
-        resp.end('ok');
+        resp.end(live.liveTime());
     }
 
-    function getlivetime(){
-        resp.end(live.liveTime());
+    function stoplive(){
+        live.stopLive();
+        resp.end('ok');
     }
 }).listen(8000);
 

@@ -17,7 +17,8 @@
   },
   "homepage": "https://github.com/bartmao/LearnEverything#readme",
   "devDependencies": {
-    "@types/node": "^6.0.57"
+    "@types/node": "^6.0.57",
+    "rimraf": "^2.5.4"
   },
   "dependencies": {
     "minimist": "^1.2.0"
