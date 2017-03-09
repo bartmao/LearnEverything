@@ -24,7 +24,7 @@ http.createServer((req, resp) => {
 
     function startLive() {
         live.startLive();
-        resp.end(live.liveTime());
+        resp.end('ok');
     }
 
     function stoplive(){
