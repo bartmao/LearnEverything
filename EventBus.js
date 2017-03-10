@@ -39,6 +39,14 @@ function EventBus() {
 
     let handlers = {};
 
+    function once(type, listener){
+        var wrapper = function(payload){
+            off(type, wrapper);
+            listener(payload);
+        }
+        var attached = on(type, wrapper);
+    }
+
     function on(type, listener, scope, priority = EVENT_PRIORITY_LOW) {
 
         if (!type) {
@@ -111,6 +119,7 @@ function EventBus() {
 
     const instance = {
         on: on,
+        once:once,
         off: off,
         trigger: trigger,
         reset: reset

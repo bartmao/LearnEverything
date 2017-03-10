@@ -2,13 +2,18 @@ var cp = require('child_process');
 var fs = require('fs');
 var path = require('path');
 var rimraf = require('rimraf');
+var eventbus = require('../eventbus');
 
 // 1. begin segmenting
 // 2. watch generated, package it to m4s
-var workingPath = __dirname + path.sep + '5';
-var curSeq = 0;
-var livetime;
-var isPlaying;
+var liveStatus = {
+    isInitialled: false,
+    isPlaying: false,
+    liveTime: null,
+    curChunk: null,
+    workingPath: __dirname + path.sep + '5'
+};
+var workingPath = liveStatus.workingPath;
 
 //var ffmpegopt = '-r 15 -i 1.mp4 -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
 //var ffmpegopt = '-r 15 -f dshow -i video=Microsoft%spLifeCam%spFront -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
@@ -20,15 +25,14 @@ var mp4pkgopt_t = '-dash-ctx ./5/dash-live.txt -dash 4000 -rap -ast-offset -no-f
 var mp4cmd = 'MP4Box';
 
 var fp; // ffmpeg process
-var curChuck;
 
 function startLive() {
-    if (isPlaying) {
+    if (liveStatus.isPlaying) {
         console.log('Live has started');
         return;
     }
 
-    isPlaying = true;
+    liveStatus.isPlaying = true;
     remkFolder();
     var opts = ffmpegopt.split(' ')
     opts.forEach((v, i) => opts[i] = opts[i].replace(/%sp/g, ' '));
@@ -42,11 +46,15 @@ function startLive() {
             console.log(`file ${f} generated`);
             addFile(f);
         }
+        else if (evt == 'rename' && nf.endsWith('s_init.mp4')) {
+            liveStatus.isInitialled = true;
+            eventbus.trigger('LiveInitialled');
+        }
     });
 }
 
 function stopLive() {
-    if (!isPlaying || !fp) return;
+    if (!liveStatus.isPlaying || !fp) return;
 
     fp.kill();
     console.log('live stopped');
@@ -67,9 +75,9 @@ function pkgFile(f) {
     console.log('MP4Box ' + mp4pkgopt);
     var mp2 = cp.spawn(mp4cmd, mp4pkgopt.split(' '), { stdio: 'inherit' });
     mp2.on('exit', () => {
-        curChuck = f;
-        if (!livetime)
-            livetime = new Date();
+        var seq = parseInt(f.substring(2,8));
+        liveStatus.curChunk = 's_' + seq + '.m4s';
+        eventbus.trigger('ChunkGenerated', liveStatus.curChunk);
     })
 }
 
@@ -92,4 +100,4 @@ function remkFolder() {
 
 module.exports.startLive = startLive;
 module.exports.stopLive = stopLive;
-module.exports.liveTime = getLiveTime;
+module.exports.liveStatus = liveStatus;

@@ -39,6 +39,8 @@ function loadData(seq) {
                     video.play();
                 }
                 setTimeout(function () {
+                    if(seq == 1) seq = 2;
+                    if(seq < 20)
                         loadData(++seq);
                 }, 2000);
 

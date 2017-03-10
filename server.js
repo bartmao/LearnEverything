@@ -1,14 +1,21 @@
 var http = require('http');
 var fs = require('fs');
-var live = require('./Live/live.js');
 var path = require('path');
+var liveservice = require('./Live/liveservice');
+var live = require('./Live/live');
 
 http.createServer((req, resp) => {
     console.log(req.url);
-    if (req.url == '/') req.url = '/Live/live.html';
-    if (req.url == '/Live/livestart') return startLive();
-    if (req.url == '/Live/livestop') return stoplive();
-    return readFile(req.url);
+    if(req.url == '/') req.url = '/live/live.html';
+    req.url = req.url.toLowerCase();
+    if(allowMimeTypes()) return handleStatics();
+    else if (req.url.startsWith('/live')) return new liveservice(req, resp).process();
+    
+    return handle404();
+
+    function handleStatics(){
+        readFile(req.url);
+    }
 
     function readFile(url) {
         var fpath = path.join(__dirname, url);
@@ -22,14 +29,8 @@ http.createServer((req, resp) => {
         resp.end();
     }
 
-    function startLive() {
-        live.startLive();
-        resp.end('ok');
-    }
-
-    function stoplive(){
-        live.stopLive();
-        resp.end('ok');
+    function allowMimeTypes(){
+        return req.url.match(/\.(html|js|css|jpg|mp4|m4s)$/) != null;
     }
 }).listen(8000);
 

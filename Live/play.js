@@ -5,19 +5,20 @@ var mediaSource;
 var liveTime;
 var dur = 4000;
 var curSeq = -1;
+var curChunk;
 
-function start(){
-    ajax('/Live/livestart', function(t){
+function start() {
+    ajax('/Live/startlive', function (t) {
         console.log('Live Started');
         liveTime = new Date(t);
         console.log('Live Time: ' + liveTime);
-    }, 'text');  
+    }, 'text');
 }
 
-function stop(){
-    ajax('/Live/livestop', function(t){
+function stop() {
+    ajax('/Live/stoplive', function (t) {
         console.log('Live Stopped');
-    }, 'text');  
+    }, 'text');
 }
 
 function init() {
@@ -35,7 +36,7 @@ function init() {
 
 function loadInitData() {
     try {
-        ajax("Live/5/s_init.mp4", function (data) {
+        ajax("Live/getInitChunk", function (data) {
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 loadData();
@@ -49,18 +50,21 @@ function loadInitData() {
 function loadData() {
     try {
         var curTime = new Date() - liveTime - 3000;
-        if(curTime < 0) return;
-        var t = Math.floor(curTime/dur);
-        if(t == curSeq) return setTimeout(loadData, 50);
+        if (curTime < 0) return;
+        var t = Math.floor(curTime / dur);
+        if (t == curSeq) return setTimeout(loadData, 50);
         curSeq = t;
 
-        ajax("Live/5/s_" + curSeq + ".m4s", function (data) {
+        ajax("Live/getNextChunk", function (data, chunkName) {
+            if(chunkName == curChunk) return setTimeout(loadData, 50);
+            curChunk = chunkName;
+            console.log(chunkName);
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 if (video.paused) {
                     video.play();
                 }
-                video.currentTime= curTime;
+                //video.currentTime= curTime;
                 loadData();
             });
         });
@@ -114,7 +118,7 @@ function ajax(url, cb, type = 'arraybuffer') {
 
     oReq.onload = function (oEvent) {
         var buf = oReq.response;
-        cb(type == 'arraybuffer'?new Uint8Array(buf):buf);
+        cb(type == 'arraybuffer' ? new Uint8Array(buf) : buf, oReq.getResponseHeader('Chunk-Name'));
     };
     oReq.onerror = function (err) {
         console.error(err);
