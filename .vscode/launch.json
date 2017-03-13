@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Launch Program",
             "program": "${workspaceRoot}/server.js",
-            "cwd": "${workspaceRoot}/Live",
+            "cwd": "${workspaceRoot}/live",
             "sourceMaps": true,
             "outFiles": [
                 "${workspaceRoot}/out/*.js",

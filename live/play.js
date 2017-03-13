@@ -8,7 +8,7 @@ var curSeq = -1;
 var curChunk;
 
 function start() {
-    ajax('/Live/startlive', function (t) {
+    ajax('/live/startlive', function (t) {
         console.log('Live Started');
         liveTime = new Date(t);
         console.log('Live Time: ' + liveTime);
@@ -16,7 +16,7 @@ function start() {
 }
 
 function stop() {
-    ajax('/Live/stoplive', function (t) {
+    ajax('/live/stoplive', function (t) {
         console.log('Live Stopped');
     }, 'text');
 }
@@ -36,7 +36,7 @@ function init() {
 
 function loadInitData() {
     try {
-        ajax("Live/getInitChunk", function (data) {
+        ajax("live/getInitChunk", function (data) {
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 loadData();
@@ -49,20 +49,19 @@ function loadInitData() {
 
 function loadData() {
     try {
-        var curTime = new Date() - liveTime - 3000;
-        if (curTime < 0) return;
-        var t = Math.floor(curTime / dur);
-        if (t == curSeq) return setTimeout(loadData, 50);
-        curSeq = t;
-
-        ajax("Live/getNextChunk", function (data, chunkName) {
-            if(chunkName == curChunk) return setTimeout(loadData, 50);
+        var reqUrl = "live/getNextChunk" + (curChunk ? '?lastChunk=' + curChunk : '');
+        ajax(reqUrl, function (data, chunkName) {
+            if (chunkName == curChunk) return setTimeout(loadData, 50);
             curChunk = chunkName;
             console.log(chunkName);
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
                 if (video.paused) {
                     video.play();
+                }
+                else if (video.readyState != 4) {
+                    var seq = parseInt(curChunk.substring(2, 4));
+                    video.currentTime = (seq - 1) * 4;
                 }
                 //video.currentTime= curTime;
                 loadData();

@@ -1,5 +1,5 @@
 var live = require('./live');
-var eventbus = require('../eventbus');
+var eventbus = require('../EventBus');
 var fs = require('fs');
 var path = require('path');
 var url = require('url');
@@ -47,7 +47,7 @@ function liveservice(req, resp) {
     }
 
     function getNextChunk() {
-        var lastChunk = url.parse(req.url, true).lastChunk;
+        var lastChunk = url.parse(req.url, true).query.lastchunk;
         if (!lastChunk) return getLastestChunk();
 
         var seq = parseInt(lastChunk.substring(2, 8));
@@ -67,7 +67,10 @@ function liveservice(req, resp) {
                 resp.setHeader('Chunk-Name', fn);
                 fs.createReadStream(file).pipe(resp);
             }
-            else handle404();
+            else{
+                console.warn(fn + ' not existed');
+                handle404();
+            }
         });
     }
 

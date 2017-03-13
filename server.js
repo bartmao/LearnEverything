@@ -1,8 +1,8 @@
 var http = require('http');
 var fs = require('fs');
 var path = require('path');
-var liveservice = require('./Live/liveservice');
-var live = require('./Live/live');
+var liveservice = require('./live/liveservice');
+var live = require('./live/live');
 
 http.createServer((req, resp) => {
     console.log(req.url);
@@ -30,7 +30,11 @@ http.createServer((req, resp) => {
     }
 
     function allowMimeTypes(){
-        return req.url.match(/\.(html|js|css|jpg|mp4|m4s)$/) != null;
+        if(req.url.indexOf('?') > -1){
+            return req.url.substring(0, req.url.indexOf('?')).match(/[^?]+(html|js|css|jpg|mp4|m4s)$/) != null;
+        }
+        
+        return req.url.match(/[^?]+(html|js|css|jpg|mp4|m4s)$/) != null;
     }
 }).listen(8000);
 

@@ -2,7 +2,7 @@ var cp = require('child_process');
 var fs = require('fs');
 var path = require('path');
 var rimraf = require('rimraf');
-var eventbus = require('../eventbus');
+var eventbus = require('../EventBus');
 
 // 1. begin segmenting
 // 2. watch generated, package it to m4s
@@ -15,9 +15,9 @@ var liveStatus = {
 };
 var workingPath = liveStatus.workingPath;
 
-//var ffmpegopt = '-r 15 -i 1.mp4 -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
+var ffmpegopt = '-re -i 1.mp4 -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -r 15 -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
 //var ffmpegopt = '-r 15 -f dshow -i video=Microsoft%spLifeCam%spFront -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
-var ffmpegopt = '-r 15 -f dshow -i video=Integrated%spCamera -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
+//var ffmpegopt = '-r 15 -f dshow -i video=Integrated%spCamera -map 0:0 -c:v libx264 -preset ultrafast -x264opts keyint=15:min-keyint=15:no-scenecut -b:v 200k -f segment -segment_time 4 -segment_format mpegts ./5/s_%05d.ts';
 var ffmpegcmd = 'ffmpeg';
 
 var mp4addopt_t = '-add %in %out';
@@ -36,7 +36,7 @@ function startLive() {
     remkFolder();
     var opts = ffmpegopt.split(' ')
     opts.forEach((v, i) => opts[i] = opts[i].replace(/%sp/g, ' '));
-    fp = cp.spawn(ffmpegcmd, opts, { stdio: "inherit" });
+    fp = cp.spawn(ffmpegcmd, opts, {stdio:'inherit'});
     console.log('begin segmenting...');
 
     fs.watch(workingPath, (evt, nf) => {
@@ -73,10 +73,11 @@ function addFile(f) {
 function pkgFile(f) {
     var mp4pkgopt = mp4pkgopt_t.replace('%file', path.join(workingPath, f + '.mp4')).replace('%dir', workingPath + path.sep);
     console.log('MP4Box ' + mp4pkgopt);
-    var mp2 = cp.spawn(mp4cmd, mp4pkgopt.split(' '), { stdio: 'inherit' });
+    var mp2 = cp.spawn(mp4cmd, mp4pkgopt.split(' '));
     mp2.on('exit', () => {
-        var seq = parseInt(f.substring(2,8));
+        var seq = parseInt(f.substring(2,8)) + 1;
         liveStatus.curChunk = 's_' + seq + '.m4s';
+        console.log(liveStatus.curChunk + ' generated');
         eventbus.trigger('ChunkGenerated', liveStatus.curChunk);
     })
 }
