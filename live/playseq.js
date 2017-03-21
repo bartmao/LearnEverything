@@ -21,7 +21,7 @@ function loadInitData() {
         binaryget("5/s_init.mp4", function (data) {
             waitForUpdateEnd(data, function () {
                 sourceBuf.appendBuffer(data);
-                var seq = 1;
+                var seq = 2;
                 loadData(seq);
             });
         });
@@ -39,10 +39,10 @@ function loadData(seq) {
                     video.play();
                 }
                 setTimeout(function () {
-                    if(seq == 1) seq = 2;
+                    if(seq == 10) video.currentTime = 4;
                     if(seq < 20)
                         loadData(++seq);
-                }, 2000);
+                }, 1000);
 
             });
         });

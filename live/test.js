@@ -1,12 +1,19 @@
 var video;
 var sourceBuf;
-var dataq = [];
 var mediaSource;
-var liveTime;
 var dur = 4000;
-var curSeq = -1;
 var curChunk;
+var seekWhenAvail = true;
 
+function getvideostate(){
+    var vs = document.getElementById('vs');
+    var video = document.getElementById('video0');
+    vs.innerHTML = video.readyState + '<br/>' + curChunk + '<br/>' 
+        +(video.buffered.length>0?video.buffered.start(0):null)+ '<br/>' 
+        +(curChunk?(parseInt(curChunk.substring(2, curChunk.lastIndexOf('.'))) -1)*4:null);
+    setTimeout(getvideostate, 1000); 
+    
+}
 
 function init() {
     video = document.getElementById('video0');
@@ -20,6 +27,7 @@ function init() {
         loadInitData();
     });
 }
+
 
 function loadInitData() {
     try {
@@ -41,29 +49,23 @@ function loadData() {
         var reqUrl = "getNextChunk" + (curChunk ? '?lastChunk=' + curChunk : '');
         ajax(reqUrl, function (data, chunkName) {
             if (chunkName == curChunk) return setTimeout(loadData, 50);
-            curChunk = chunkName;
+            
             
             waitForUpdateEnd(data, function () {
 
                 sourceBuf.appendBuffer(data);
-
-                if(sourceBuf.buffered.length > 0){
-                    alert(sourceBuf.buffered.start(0));
-                    alert((curChunk.substring(2, 4) -1)*4);
-                }
-
-                if (video.readyState != 4) {
-                    //video.currentTime = sourceBuf.buffered.start(0)
-                    var seq = parseInt(curChunk.substring(2, 4));
-                    video.currentTime = (seq - 1) * 4;
-                }
                 if (video.paused) {
-                    //alert(video.paused);
-
                     video.play();
-
                 }
-                //video.currentTime= curTime;
+                if(video.readyState == 4 && seekWhenAvail) {
+                    seekWhenAvail = false;
+                    var seq = parseInt(chunkName.substring(2, chunkName.lastIndexOf('.')));
+                    video.currentTime = (seq - 1) * 4;
+                    console.log(video.currentTime);
+                }
+                curChunk = chunkName;
+
+
                 loadData();
             });
         });
