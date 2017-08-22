@@ -26,10 +26,10 @@ var permutation = function (n) {
 
 var permutationarr = function (arr) {
     var ans = [];
-    var n = 2;
+    var n = arr.length;
     function p(temparr, cur) {
         if (cur == n) {
-            ans.push(temparr.slice(0,2));
+            ans.push(temparr.slice(0,n));
             return;
         }
         for (var i = 0; i < n; ++i) {
@@ -41,7 +41,7 @@ var permutationarr = function (arr) {
                 }
             }
             if (ok) {
-                temparr.push(arr[i]);
+                temparr[cur] = arr[i];
                 p(temparr, cur + 1);
             }
         }
@@ -50,4 +50,8 @@ var permutationarr = function (arr) {
 
     return ans;
 }
+console.log(permutationarr([]));
+console.log(permutationarr([1]));
 console.log(permutationarr([1,2]));
+console.log(permutationarr([1,2,3]));
+console.log(permutationarr([1,2,3,4]));
