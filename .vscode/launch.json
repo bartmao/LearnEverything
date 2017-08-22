@@ -8,7 +8,7 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceRoot}/heap.js",
+            "program": "${workspaceRoot}/algorithm/permutation.js",
             "cwd": "${workspaceRoot}/live",
             "sourceMaps": true,
             "outFiles": [
