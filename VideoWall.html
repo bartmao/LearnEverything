@@ -1,0 +1,135 @@
+<html>
+
+<head>
+    <title>Video Wall</title>
+</head>
+
+<body>
+    <style>
+        .play-area {
+            width: 300px;
+            height: 300px;
+            border: 1px dashed grey;
+            display: inline-block;
+            margin: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .play-area span {
+            color: red;
+            top: 0;
+            right: 0;
+            position: absolute;
+            cursor: pointer;
+            font-family: "arial";
+        }
+
+        .play-area .resizer {
+            background-color: green;
+            bottom: 0;
+            right: 0;
+            position: absolute;
+            cursor: se-resize;
+            width: 10px;
+            height: 10px;
+        }
+
+        #drop-area {
+            width: 300px;
+            height: 300px;
+            border: 1px dashed grey;
+            display: inline-block;
+            position: relative;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        #drop-area::after {
+            content: "+";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+        }
+
+        video {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+    <div id="control-panel">
+    </div>
+    <div id="drop-area" draggable="true">
+    </div>
+    <input type="file" id="file" onchange="addFiles(document.getElementById('file').files)" multiple style="display:none;">
+    <script id="video-template" type="template">
+        <video autoplay controls loop></video>
+        <span>X</span>
+        <div class='resizer'></div>
+    </script>
+    <script>
+        var dropArea = document.querySelector('#drop-area');
+        var playArea = document.querySelector('#play-area');
+        var dragging;
+
+        ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
+            dropArea.addEventListener(event, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        dropArea.addEventListener('click', function () {
+            document.getElementById('file').click();
+        });
+        dropArea.addEventListener('drop', function (e) {
+            var droppedFiles = e.dataTransfer.files;
+            addFiles(droppedFiles);
+        });
+
+        function initDrag(e) {
+            var p = e.target.parentNode;
+            dragging = p;
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
+            startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
+            document.documentElement.addEventListener('mousemove', doDrag, false);
+            document.documentElement.addEventListener('mouseup', stopDrag, false);
+        }
+
+        function doDrag(e) {
+            dragging.style.width = (startWidth + e.clientX - startX) + 'px';
+            dragging.style.height = (startHeight + e.clientY - startY) + 'px';
+        }
+
+        function stopDrag(e) {
+            dragging = null;
+            document.documentElement.removeEventListener('mousemove', doDrag, false);
+            document.documentElement.removeEventListener('mouseup', stopDrag, false);
+        }
+
+        function addFiles(files) {
+            for (var i = 0; i < files.length; i++) {
+                var area = document.createElement('div');
+                area.innerHTML = document.getElementById('video-template').innerHTML;
+                area.classList.add("play-area");
+                dropArea.insertAdjacentElement('beforebegin', area);
+
+                var video = area.querySelector('video');
+                var close = area.querySelector('span');
+                var resizer = area.querySelector('.resizer');
+                close.addEventListener('click', function () {
+                    this.parentNode.remove();
+                });
+                resizer.addEventListener('mousedown', initDrag, false);
+                var url = URL.createObjectURL(files[i]);
+                video.src = url;
+            }
+        }
+    </script>
+</body>
+
+</html>
