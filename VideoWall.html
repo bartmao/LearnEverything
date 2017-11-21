@@ -6,11 +6,11 @@
 
 <body>
     <style>
-        body
-        {
+        body {
             padding: 0;
-            margin: 0;    
+            margin: 0;
         }
+
         .play-area {
             border: 1px dashed grey;
             /* display: inline-block; */
@@ -27,6 +27,7 @@
             position: absolute;
             cursor: pointer;
             font-family: "arial";
+            z-index: 1;
         }
 
         .play-area .resizer {
@@ -40,13 +41,14 @@
         }
 
         .play-area .dragger {
-            background-color: yellow;
+            background-color: dodgerblue;
             left: 0;
             top: 0;
             position: absolute;
             cursor: move;
-            width: 10px;
-            height: 10px;
+            width: 100%;
+            height: 20px;
+            opacity: 0;
         }
 
         #drop-area {
@@ -94,6 +96,9 @@
         var dragging;
         var draggingType = 0;
         var x = 0, y = 0;
+        var startX = 0, startY = 0;
+        var offsetX = 0, offsetY = 0;
+        var maxIndex = 101;
 
         ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
             dropArea.addEventListener(event, function (e) {
@@ -114,15 +119,17 @@
             var p = e.target.parentNode;
             if (e.target.classList.contains('resizer')) {
                 draggingType = 0;
+                startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
+                startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
             } else {
                 draggingType = 1;
+                offsetX = e.clientX - p.offsetLeft;
+                offsetY = e.clientY - p.offsetTop;
             }
 
             dragging = p;
             startX = e.clientX;
             startY = e.clientY;
-            startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
-            startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
             document.documentElement.addEventListener('mousemove', doDrag, false);
             document.documentElement.addEventListener('mouseup', stopDrag, false);
         }
@@ -132,8 +139,8 @@
                 dragging.style.width = (startWidth + e.clientX - startX) + 'px';
                 dragging.style.height = (startHeight + e.clientY - startY) + 'px';
             } else {
-                dragging.style.top = e.clientY;
-                dragging.style.left = e.clientX;
+                dragging.style.left = e.clientX - offsetX;
+                dragging.style.top = e.clientY - offsetY;
             }
         }
 
@@ -149,29 +156,45 @@
                 area.innerHTML = document.getElementById('video-template').innerHTML;
                 area.classList.add("play-area");
                 document.querySelector('#content-panel').appendChild(area);
-                //dropArea.insertAdjacentElement('beforebegin', area);
 
                 var video = area.querySelector('video');
                 var close = area.querySelector('span');
                 var resizer = area.querySelector('.resizer');
                 var dragger = area.querySelector('.dragger');
+                area.addEventListener('click', function(e){
+                    bringToFront(e.target.parentNode);
+                });
                 close.addEventListener('click', function () {
                     this.parentNode.remove();
                 });
                 resizer.addEventListener('mousedown', initDrag, false);
                 dragger.addEventListener('mousedown', initDrag, false);
+                dragger.addEventListener('mouseenter', e=>{
+                    e.target.style.opacity = 0.5;
+                }, false);
+                dragger.addEventListener('mouseleave', e=>{
+                    e.target.style.opacity = 0;
+                }, false);
                 var url = URL.createObjectURL(files[i]);
                 video.src = url;
                 video.style.display = 'none';
-                area.style.left = Math.random() * 100 + 'px';
-                area.style.top = Math.random() * 100 + 'px';
-                video.onloadedmetadata = function () {
-                    var ratio = video.videoWidth / video.videoHeight;
-                    area.style.width = '300px';
-                    area.style.height = 300 / ratio + 'px';
-                    video.style.display = 'inherit';
-                }
+                (function (area) {
+                    var v = area.querySelector('video');
+                    v.onloadeddata = function () {
+                        area.style.left = Math.random() * 100 + 'px';
+                        area.style.top = Math.random() * 100 + 'px';
+                        var ratio = v.videoWidth / v.videoHeight;
+                        area.style.width = '300px';
+                        area.style.height = 300 / ratio + 'px';
+                        v.style.display = 'inherit';
+                        console.log('onloaded');
+                    }
+                })(area);
             }
+        }
+
+        function bringToFront(e){
+            e.style['z-index'] = maxIndex++;
         }
     </script>
 </body>
